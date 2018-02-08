@@ -61,7 +61,7 @@ func RuntimeDir(root string) string {
 
 // InitRuntimeDir makes all the necessary directorys for angine's runtime
 // and generate the config template for you if it is not there already
-func InitRuntime(root string, chainId string) error {
+func InitRuntime(root string, chainId string, pwd []byte) error {
 	root = RuntimeDir(root)
 
 	// ~/.angine
@@ -89,12 +89,13 @@ func InitRuntime(root string, chainId string) error {
 	conf.AutomaticEnv()
 
 	// priv_validator.json
-	genPrivFile(conf.GetString("priv_validator_file"))
-	// gvs := []types.GenesisValidator{types.GenesisValidator{
-	// 	PubKey: priv.PubKey,
-	// 	Amount: 100,
-	// 	IsCA:   true,
-	// }}
+	/*priv :=*/
+	genPrivFile(conf.GetString("priv_validator_file"), pwd)
+	//gvs := []types.GenesisValidator{types.GenesisValidator{
+	//	PubKey: priv.PubKey,
+	//	Amount: 100,
+	//	IsCA:   true,
+	//}}
 
 	// genesis.json
 	genDoc, err := genGenesiFile(conf.GetString("genesis_file"), chainId, nil)
@@ -133,8 +134,11 @@ func GetConfig(root string) (conf *viper.Viper) {
 	return
 }
 
-func genPrivFile(path string) *types.PrivValidator {
-	privValidator := types.GenPrivValidator(nil)
+func genPrivFile(path string, pwd []byte) *types.PrivValidator {
+	privValidator, err := types.GenPrivValidator(nil, pwd)
+	if err != nil {
+		panic(err)
+	}
 	privValidator.SetFile(path)
 	privValidator.Save()
 	return privValidator

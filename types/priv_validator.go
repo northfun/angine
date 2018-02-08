@@ -24,7 +24,6 @@ import (
 	"sync"
 
 	pbtypes "github.com/Baptist-Publication/angine/protos/types"
-	"github.com/Baptist-Publication/chorus-module/lib/ed25519"
 	. "github.com/Baptist-Publication/chorus-module/lib/go-common"
 	"github.com/Baptist-Publication/chorus-module/lib/go-crypto"
 	"github.com/Baptist-Publication/chorus-module/xlib/def"
@@ -143,18 +142,22 @@ func (privVal *PrivValidator) GetCoinbase() []byte {
 	return (*pub)[:]
 }
 
+func (privVal *PrivValidator) Destroy() {
+	privVal.GetPrivKey().Destroy()
+}
+
 // Generates a new validator with private key.
-func GenPrivValidator(logger *zap.Logger) *PrivValidator {
-	privKeyBytes := new([64]byte)
-	copy(privKeyBytes[:32], crypto.CRandBytes(32))
-	pubKeyBytes := ed25519.MakePublicKey(privKeyBytes)
-	pubKey := crypto.PubKeyEd25519(*pubKeyBytes)
-	privKey := crypto.PrivKeyEd25519(*privKeyBytes)
+func GenPrivValidator(logger *zap.Logger, pwd []byte) (*PrivValidator, error) {
+	privKey, err := crypto.GenPrivKeyEd25519(pwd)
+	if err != nil {
+		return nil, err
+	}
+	pubKey := privKey.PubKey()
 	return &PrivValidator{
 		PrivValidatorJSON: PrivValidatorJSON{
-			PubKey:        crypto.StPubKey{&pubKey},
-			Coinbase:      crypto.StPubKey{&pubKey},
-			PrivKey:       crypto.StPrivKey{&privKey},
+			PubKey:        crypto.StPubKey{pubKey},
+			Coinbase:      crypto.StPubKey{pubKey},
+			PrivKey:       crypto.StPrivKey{privKey},
 			LastHeight:    0,
 			LastRound:     0,
 			LastStep:      stepNone,
@@ -162,12 +165,12 @@ func GenPrivValidator(logger *zap.Logger) *PrivValidator {
 			LastSignBytes: nil,
 		},
 		filePath: "",
-		Signer:   NewDefaultSigner(&privKey),
+		Signer:   NewDefaultSigner(privKey),
 		logger:   logger,
-	}
+	}, nil
 }
 
-func LoadPrivValidator(logger *zap.Logger, filePath string) *PrivValidator {
+func LoadPrivValidator(logger *zap.Logger, filePath string, pwd []byte) *PrivValidator {
 	privValJSONBytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		Exit(err.Error())
@@ -177,21 +180,30 @@ func LoadPrivValidator(logger *zap.Logger, filePath string) *PrivValidator {
 	if err != nil {
 		Exit(Fmt("Error reading PrivValidator from %v: %v\n", filePath, err))
 	}
+	if err = privVal.GetPrivKey().Decrypt(pwd); err != nil {
+		Exit(Fmt("Password for decrypt priv_validator err:%v\n", err))
+	}
 	privVal.filePath = filePath
 	privVal.Signer = NewDefaultSigner(privVal.PrivKey.PrivKey)
 	privVal.logger = logger
 	return &privVal
 }
 
-func LoadOrGenPrivValidator(logger *zap.Logger, filePath string) *PrivValidator {
+func LoadOrGenPrivValidator(logger *zap.Logger, filePath string, pwd []byte) *PrivValidator {
 	var privValidator *PrivValidator
 	if _, err := os.Stat(filePath); err == nil {
-		privValidator = LoadPrivValidator(logger, filePath)
+		privValidator = LoadPrivValidator(logger, filePath, pwd)
 		if logger != nil {
 			logger.Sugar().Infow("Loaded PrivValidator", "file", filePath, "privValidator", privValidator)
 		}
 	} else {
-		privValidator = GenPrivValidator(logger)
+		privValidator, err = GenPrivValidator(logger, pwd)
+		if err != nil {
+			if logger != nil {
+				logger.Error("Generated PrivValidator", zap.Error(err))
+			}
+			return nil
+		}
 		privValidator.SetFile(filePath)
 		privValidator.Save()
 		if logger != nil {

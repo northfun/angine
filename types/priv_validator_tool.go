@@ -26,8 +26,8 @@ type PrivValidatorTool struct {
 	pv  *PrivValidator
 }
 
-func (pt *PrivValidatorTool) Init(dir string) error {
-	pt.pv = LoadPrivValidator(nil, dir)
+func (pt *PrivValidatorTool) Init(dir string, pwd []byte) error {
+	pt.pv = LoadPrivValidator(nil, dir, pwd)
 	if pt.pv == nil {
 		return ErrFileNotFound
 	}

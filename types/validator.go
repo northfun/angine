@@ -149,7 +149,10 @@ func (v *Validator) Hash() []byte {
 // For testing...
 
 func RandValidator(logger *zap.Logger, randPower bool, minPower def.INT) (*Validator, *PrivValidator) {
-	privVal := GenPrivValidator(logger)
+	privVal, err := GenPrivValidator(logger, nil)
+	if err != nil {
+		panic(err)
+	}
 	_, tempFilePath := Tempfile("priv_validator_")
 	privVal.SetFile(tempFilePath)
 	votePower := minPower

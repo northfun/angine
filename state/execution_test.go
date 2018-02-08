@@ -21,13 +21,13 @@ import (
 	"testing"
 
 	"github.com/tendermint/tendermint/config/tendermint_test"
+	crypto "gitlab.zhonganonline.com/ann/annlibs/lib/go-crypto"
 	//	. "github.com/tendermint/go-common"
+	"github.com/tendermint/abci/example/dummy"
 	cfg "github.com/tendermint/go-config"
-	"github.com/tendermint/go-crypto"
 	dbm "github.com/tendermint/go-db"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
-	"github.com/tendermint/abci/example/dummy"
 )
 
 var (

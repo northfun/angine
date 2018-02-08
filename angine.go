@@ -100,8 +100,8 @@ func ProtocolAndAddress(listenAddr string) (string, string) {
 
 // Initialize generates genesis.json and priv_validator.json automatically.
 // It is usually used with commands like "init" before user put the node into running.
-func Initialize(tune *Tunes, chainId string) {
-	if err := ac.InitRuntime(tune.Runtime, chainId); err != nil {
+func Initialize(tune *Tunes, chainId string, pwd []byte) {
+	if err := ac.InitRuntime(tune.Runtime, chainId, pwd); err != nil {
 		cmn.PanicSanity(err)
 	}
 }
@@ -124,7 +124,7 @@ func closeDBs(a *Angine) {
 }
 
 // NewAngine makes and returns a new angine, which can be used directly after being imported
-func NewAngine(lgr *zap.Logger, tune *Tunes) (angine *Angine) {
+func NewAngine(lgr *zap.Logger, tune *Tunes, pwd []byte) (angine *Angine) {
 	var conf *viper.Viper
 	if tune.Conf == nil {
 		conf = ac.GetConfig(tune.Runtime)
@@ -170,7 +170,11 @@ func NewAngine(lgr *zap.Logger, tune *Tunes) (angine *Angine) {
 		return nil
 	}
 
-	privValidator := agtypes.LoadOrGenPrivValidator(logger, conf.GetString("priv_validator_file"))
+	privValidator := agtypes.LoadOrGenPrivValidator(logger, conf.GetString("priv_validator_file"), pwd)
+	if privValidator == nil {
+		lgr.Error("load or gen priv_validator err")
+		return nil
+	}
 	refuseList = refuse_list.NewRefuseList(dbBackend, dbDir)
 	eventSwitch := agtypes.NewEventSwitch(logger)
 	if _, err := eventSwitch.Start(); err != nil {
@@ -966,7 +970,7 @@ func prepareP2P(logger *zap.Logger, conf *viper.Viper, genesisBytes []byte, priv
 	privKey := privValidator.GetPrivKey()
 	p2psw.AddListener(defaultListener)
 	p2psw.SetNodeInfo(nodeInfo)
-	p2psw.SetNodePrivKey(*(privKey.(*crypto.PrivKeyEd25519)))
+	p2psw.SetNodePrivKey(privKey.(*crypto.PrivKeyEd25519))
 	p2psw.SetAddToRefuselist(addToRefuselist(refuseList))
 	p2psw.SetRefuseListFilter(refuseListFilter(refuseList))
 
