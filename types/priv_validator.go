@@ -183,6 +183,9 @@ func LoadPrivValidator(logger *zap.Logger, filePath string, pwd []byte) *PrivVal
 	if err = privVal.GetPrivKey().Decrypt(pwd); err != nil {
 		Exit(Fmt("Password for decrypt priv_validator err:%v\n", err))
 	}
+	if !privVal.GetPrivKey().PubKey().Equals(privVal.GetPubKey()) {
+		Exit(Fmt("Wrong password!"))
+	}
 	privVal.filePath = filePath
 	privVal.Signer = NewDefaultSigner(privVal.PrivKey.PrivKey)
 	privVal.logger = logger
